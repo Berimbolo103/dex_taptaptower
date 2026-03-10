@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Perfect Tap Tower</title>
+  <style>
+    :root {
+      --bg1: #0f172a;
+      --bg2: #1e293b;
+      --panel: rgba(15, 23, 42, 0.82);
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      --cyan: #22d3ee;
+      --blue: #3b82f6;
+      --green: #34d399;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(34, 211, 238, 0.18), transparent 30%),
+        linear-gradient(180deg, var(--bg2), var(--bg1));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .app {
+      width: min(100%, 460px);
+      display: grid;
+      gap: 12px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat {
+      padding: 12px 14px;
+      text-align: center;
+    }
+
+    .label {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .value {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .game-shell {
+      position: relative;
+      padding: 10px;
+    }
+
+    canvas {
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      display: block;
+      border-radius: 24px;
+      background: linear-gradient(180deg, #1d4ed8 0%, #0f172a 100%);
+      box-shadow: inset 0 0 80px rgba(255, 255, 255, 0.05);
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 10px;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: rgba(2, 6, 23, 0.38);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease;
+      padding: 24px;
+    }
+
+    .overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .panel {
+      max-width: 320px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 22px 20px;
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel h1,
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.05;
+    }
+
+    .panel p {
+      margin: 8px 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .big-score {
+      font-size: 42px;
+      font-weight: 900;
+      margin: 12px 0;
+    }
+
+    .cta-row {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(1px) scale(0.99); }
+
+    .primary {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: white;
+    }
+
+    .footer {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    .meter {
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), var(--cyan), var(--blue));
+      transition: width 0.16s ease;
+    }
+
+    .list {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .hint {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 560px) {
+      .footer,
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .value {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="card stat"><div class="label">Score</div><div class="value" id="scoreValue">0</div></div>
+      <div class="card stat"><div class="label">Best</div><div class="value" id="bestValue">0</div></div>
+      <div class="card stat"><div class="label">Combo</div><div class="value" id="comboValue">x1</div></div>
+    </div>
+
+    <div class="card game-shell">
+      <canvas id="game" width="420" height="720"></canvas>
+
+      <div class="overlay show" id="startOverlay">
+        <div class="panel">
+          <h1>Perfect Tap Tower</h1>
+          <p>Tap or press <strong>Space</strong> to drop the moving block.</p>
+          <p>Stack cleanly, keep the tower centered, and chase your best score.</p>
+          <div class="cta-row">
+            <button class="primary" id="startBtn">Start Game</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" id="gameOverOverlay">
+        <div class="panel">
+          <h2>Game Over</h2>
+          <div class="big-score" id="finalScore">0</div>
+          <p id="resultLine">You were close. One more run.</p>
+          <div class="cta-row">
+            <button class="primary" id="retryBtn">Instant Retry</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="card">
+        <div class="card-body">
+          <div class="label">Progress to next speed tier</div>
+          <div class="meter"><div class="meter-fill" id="tierMeter"></div></div>
+          <div class="hint" id="tierText">Tier 1 · Calm</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="label">Mock leaderboard</div>
+          <div class="list" id="leaderboard"></div>
+          <div class="hint">Local demo leaderboard on this device</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const scoreValue = document.getElementById('scoreValue');
+    const bestValue = document.getElementById('bestValue');
+    const comboValue = document.getElementById('comboValue');
+    const finalScore = document.getElementById('finalScore');
+    const resultLine = document.getElementById('resultLine');
+    const startOverlay = document.getElementById('startOverlay');
+    const gameOverOverlay = document.getElementById('gameOverOverlay');
+    const startBtn = document.getElementById('startBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const tierMeter = document.getElementById('tierMeter');
+    const tierText = document.getElementById('tierText');
+    const leaderboard = document.getElementById('leaderboard');
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const FLOOR_H = 30;
+    const GROUND_Y = H - 82;
+    const PERFECT_TOLERANCE = 5;
+    const VISIBLE_BLOCKS = 10;
+
+    let bestScore = Number(localStorage.getItem('perfectTapTowerBest') || 0);
+    let leaderboardData = JSON.parse(localStorage.getItem('perfectTapTowerLeaderboard') || 'null') || [
+      { name: 'Ken', score: 26 },
+      { name: 'Michelle', score: 22 },
+      { name: 'Dexter', score: 18 }
+    ];
+
+    let cloudOffset = 0;
+    let game = null;
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function hsl(h, s, l) {
+      return `hsl(${h} ${s}% ${l}%)`;
+    }
+
+    function drawRoundedRect(x, y, w, h, r, fillStyle) {
+      const rr = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      ctx.closePath();
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+    }
+
+    function renderLeaderboard(currentScore = null) {
+      const merged = [...leaderboardData];
+      if (currentScore !== null) {
+        merged.push({ name: 'You', score: currentScore, temp: true });
+      }
+      merged.sort((a, b) => b.score - a.score);
+      leaderboard.innerHTML = '';
+      merged.slice(0, 5).forEach((entry, i) => {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = `<span>#${i + 1} ${entry.name}</span><strong>${entry.score}</strong>`;
+        if (entry.temp) {
+          row.style.outline = '1px solid rgba(34, 211, 238, 0.45)';
+        }
+        leaderboard.appendChild(row);
+      });
+    }
+
+    function saveLeaderboard(score) {
+      leaderboardData.push({ name: 'You', score });
+      leaderboardData.sort((a, b) => b.score - a.score);
+      leaderboardData = leaderboardData.slice(0, 8);
+      localStorage.setItem('perfectTapTowerLeaderboard', JSON.stringify(leaderboardData));
+      renderLeaderboard();
+    }
+
+    function updateUI() {
+      if (!game) return;
+      scoreValue.textContent = game.score;
+      comboValue.textContent = `x${game.combo}`;
+      bestValue.textContent = bestScore;
+
+      const tier = Math.floor(game.stack.length / 8) + 1;
+      const tierNames = ['Calm', 'Warming Up', 'Fast', 'Sweaty', 'Chaos', 'Insane'];
+      const tierName = tierNames[Math.min(tier - 1, tierNames.length - 1)];
+      const tierProgress = ((game.stack.length % 8) / 8) * 100;
+      tierMeter.style.width = `${tierProgress}%`;
+      tierText.textContent = `Tier ${tier} · ${tierName}`;
+    }
+
+    function getTowerWidth(level) {
+      const base = 170;
+      const reduction = Math.floor(level / 10) * 8;
+      return Math.max(68, base - reduction);
+    }
+
+    function createGame() {
+      const baseWidth = getTowerWidth(0);
+      const baseX = (W - baseWidth) / 2;
+      game = {
+        state: 'ready',
+        score: 0,
+        combo: 1,
+        perfectStreak: 0,
+        cameraY: 0,
+        shake: 0,
+        fx: [],
+        guidePulse: 0,
+        stack: [
+          {
+            x: baseX,
+            y: GROUND_Y,
+            width: baseWidth,
+            height: FLOOR_H,
+            color: hsl(205, 78, 58),
+            styleLevel: 0
+          }
+        ],
+        current: null,
+        lastTime: 0
+      };
+
+      spawnBlock();
+      updateUI();
+      renderLeaderboard();
+    }
+
+    function spawnBlock() {
+      const top = game.stack[game.stack.length - 1];
+      const level = game.stack.length;
+      const widthForLevel = Math.min(top.width, getTowerWidth(level));
+      const spawnLeft = Math.random() > 0.5;
+
+      game.current = {
+        x: spawnLeft ? -widthForLevel : W,
+        y: top.y - FLOOR_H,
+        width: widthForLevel,
+        height: FLOOR_H,
+        color: hsl((level * 22 + 170) % 360, 70, 58),
+        dir: spawnLeft ? 1 : -1,
+        speed: 145 + Math.min(level * 7, 230),
+        styleLevel: level
+      };
+    }
+
+    function addFloatingText(text, x, y, color) {
+      game.fx.push({ type: 'text', text, x, y, color, life: 1, vy: -22 });
+    }
+
+    function addParticles(x, y, color, count = 12) {
+      for (let i = 0; i < count; i++) {
+        game.fx.push({
+          type: 'particle',
+          x,
+          y,
+          vx: rand(-120, 120),
+          vy: rand(-140, -30),
+          r: rand(2, 5),
+          color,
+          life: rand(0.45, 0.8)
+        });
+      }
+    }
+
+    function dropCurrentBlock() {
+      if (!game || game.state !== 'playing') return;
+
+      const current = game.current;
+      const top = game.stack[game.stack.length - 1];
+      const overlap = Math.min(current.x + current.width, top.x + top.width) - Math.max(current.x, top.x);
+
+      if (overlap <= 0) {
+        game.state = 'over';
+        finishGame();
+        return;
+      }
+
+      const newX = Math.max(current.x, top.x);
+      const miss = Math.abs(newX - top.x);
+      let earned = 1;
+      let landedWidth = overlap;
+      let landedX = newX;
+      let label = 'GOOD';
+      let effectColor = current.color;
+
+      if (miss <= PERFECT_TOLERANCE) {
+        landedWidth = top.width;
+        landedX = top.x;
+        game.perfectStreak += 1;
+        game.combo = Math.min(9, game.combo + 1);
+        earned = game.combo + 1;
+        label = game.perfectStreak > 1 ? `PERFECT x${game.perfectStreak}` : 'PERFECT';
+        effectColor = '#34d399';
+        game.shake = Math.min(14, game.shake + 3.5);
+      } else {
+        game.perfectStreak = 0;
+        game.combo = 1;
+        if (miss > top.width * 0.25) {
+          label = 'CLOSE';
+          effectColor = '#f59e0b';
+        }
+      }
+
+      const placed = {
+        x: landedX,
+        y: current.y,
+        width: landedWidth,
+        height: current.height,
+        color: current.color,
+        styleLevel: current.styleLevel
+      };
+
+      game.stack.push(placed);
+      game.score += earned;
+
+      if (game.score > bestScore) {
+        bestScore = game.score;
+        localStorage.setItem('perfectTapTowerBest', String(bestScore));
+      }
+
+      addFloatingText(`+${earned} ${label}`, placed.x + placed.width / 2, placed.y - 8, effectColor);
+      addParticles(placed.x + placed.width / 2, placed.y + 8, effectColor, miss <= PERFECT_TOLERANCE ? 18 : 10);
+      spawnBlock();
+      updateUI();
+    }
+
+    function finishGame() {
+      finalScore.textContent = game.score;
+      const delta = bestScore - game.score;
+      resultLine.textContent = delta <= 0
+        ? 'New best. That run was clean.'
+        : delta <= 3
+          ? `You were only ${delta} away from your best.`
+          : 'Fast reset. Chase the next perfect streak.';
+      renderLeaderboard(game.score);
+      saveLeaderboard(game.score);
+      gameOverOverlay.classList.add('show');
+    }
+
+    function startGame() {
+      createGame();
+      game.state = 'playing';
+      startOverlay.classList.remove('show');
+      gameOverOverlay.classList.remove('show');
+    }
+
+    function update(dt) {
+      if (!game) return;
+
+      game.guidePulse += dt;
+      cloudOffset += dt * 18;
+      if (game.shake > 0) {
+        game.shake = Math.max(0, game.shake - dt * 20);
+      }
+
+      if (game.state === 'playing' && game.current) {
+        game.current.x += game.current.dir * game.current.speed * dt;
+        if (game.current.dir === 1 && game.current.x > W) {
+          game.current.x = -game.current.width;
+        }
+        if (game.current.dir === -1 && game.current.x + game.current.width < 0) {
+          game.current.x = W;
+        }
+      }
+
+      const topBlock = game.stack[game.stack.length - 1];
+      if (game.stack.length <= VISIBLE_BLOCKS) {
+        game.cameraY = 0;
+      } else {
+        const desiredTopScreenY = H * 0.5;
+        const targetCamera = topBlock.y - desiredTopScreenY;
+        game.cameraY += (targetCamera - game.cameraY) * Math.min(1, dt * 6);
+      }
+
+      for (let i = game.fx.length - 1; i >= 0; i--) {
+        const fx = game.fx[i];
+        fx.life -= dt;
+        if (fx.type === 'text') {
+          fx.y += fx.vy * dt;
+        } else {
+          fx.x += fx.vx * dt;
+          fx.y += fx.vy * dt;
+          fx.vy += 260 * dt;
+        }
+        if (fx.life <= 0) {
+          game.fx.splice(i, 1);
+        }
+      }
+    }
+
+    function drawBackground() {
+      const sky = ctx.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, '#6ec6ff');
+      sky.addColorStop(0.34, '#2f73ff');
+      sky.addColorStop(0.72, '#132e78');
+      sky.addColorStop(1, '#020617');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, H);
+
+      for (let i = 0; i < 8; i++) {
+        const cx = ((i * 96) + cloudOffset * (0.6 + i * 0.03)) % (W + 120) - 80;
+        const y = 70 + i * 34;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+        ctx.beginPath();
+        ctx.ellipse(cx, y, 42, 16, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx + 28, y + 2, 30, 12, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx - 24, y + 2, 26, 11, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const glow = ctx.createRadialGradient(W / 2, 120, 10, W / 2, 120, 180);
+      glow.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+      glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.fillStyle = '#081224';
+      ctx.fillRect(0, GROUND_Y + FLOOR_H, W, H - (GROUND_Y + FLOOR_H));
+    }
+
+    function drawBuildingBlock(block, isCurrent = false) {
+      const x = block.x;
+      const y = block.y;
+      const w = block.width;
+      const h = block.height;
+      const capInset = clamp(6 + Math.floor(block.styleLevel / 8) * 2, 6, 18);
+      const midInset = clamp(2 + Math.floor(block.styleLevel / 14), 2, 8);
+
+      drawRoundedRect(x, y + 5, w, h - 5, 6, block.color);
+      const capW = Math.max(24, w - capInset * 2);
+      const capX = x + (w - capW) / 2;
+      drawRoundedRect(capX, y, capW, 9, 4, 'rgba(255, 255, 255, 0.16)');
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.07)';
+      ctx.fillRect(x + 4, y + 8, Math.max(0, w * 0.18), h - 12);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.13)';
+      ctx.fillRect(x + w - Math.max(0, w * 0.14) - 4, y + 8, Math.max(0, w * 0.14), h - 12);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.09)';
+      ctx.fillRect(x + midInset, y + Math.floor(h / 2) - 2, Math.max(0, w - midInset * 2), 4);
+
+      const cols = Math.max(2, Math.floor((w - 12) / 18));
+      const gap = cols > 1 ? (w - 12) / cols : w - 12;
+      ctx.fillStyle = isCurrent ? 'rgba(255, 255, 255, 0.34)' : 'rgba(255, 255, 255, 0.22)';
+      for (let i = 0; i < cols; i++) {
+        const wx = x + 8 + i * gap;
+        ctx.fillRect(wx, y + 10, 6, 3);
+        if (h > 24) {
+          ctx.fillRect(wx, y + 17, 6, 3);
+        }
+      }
+
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.24)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 5.5, w - 1, h - 6);
+    }
+
+    function drawTower() {
+      const shakeX = game.shake ? rand(-game.shake, game.shake) : 0;
+      const shakeY = game.shake ? rand(-game.shake, game.shake) : 0;
+      ctx.save();
+      ctx.translate(shakeX, shakeY - game.cameraY);
+
+      const base = game.stack[0];
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+      ctx.beginPath();
+      ctx.ellipse(base.x + base.width / 2, GROUND_Y + FLOOR_H + 10, base.width * 0.75, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (const block of game.stack) {
+        drawBuildingBlock(block, false);
+      }
+
+      if (game.current) {
+        const top = game.stack[game.stack.length - 1];
+        const pulse = 0.07 + (0.05 + Math.sin(game.guidePulse * 5) * 0.03);
+        ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+        ctx.fillRect(top.x, game.current.y + 8, top.width, game.current.height - 10);
+        drawBuildingBlock(game.current, true);
+      }
+
+      for (const fx of game.fx) {
+        if (fx.type === 'text') {
+          ctx.save();
+          ctx.globalAlpha = clamp(fx.life, 0, 1);
+          ctx.fillStyle = fx.color;
+          ctx.font = 'bold 22px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(fx.text, fx.x, fx.y);
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.globalAlpha = clamp(fx.life * 1.4, 0, 1);
+          ctx.fillStyle = fx.color;
+          ctx.beginPath();
+          ctx.arc(fx.x, fx.y, fx.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function drawHUDHints() {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+      ctx.textAlign = 'center';
+      ctx.font = '800 30px Inter, sans-serif';
+      ctx.fillText(String(game.score), W / 2, 52);
+      if (game.state === 'playing' && game.stack.length < 4) {
+        ctx.font = '600 18px Inter, sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+        ctx.fillText('Tap anywhere or press Space to drop', W / 2, H - 24);
+      }
+    }
+
+    function render() {
+      if (!game) return;
+      ctx.clearRect(0, 0, W, H);
+      drawBackground();
+      drawTower();
+      drawHUDHints();
+    }
+
+    function loop(ts) {
+      if (!game) {
+        createGame();
+      }
+      if (!game.lastTime) {
+        game.lastTime = ts;
+      }
+      const dt = Math.min(0.033, (ts - game.lastTime) / 1000);
+      game.lastTime = ts;
+      update(dt);
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    function handleInput() {
+      if (startOverlay.classList.contains('show')) {
+        startGame();
+        return;
+      }
+      if (gameOverOverlay.classList.contains('show')) {
+        startGame();
+        return;
+      }
+      dropCurrentBlock();
+    }
+
+    canvas.addEventListener('pointerdown', handleInput);
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault();
+        handleInput();
+      }
+    });
+
+    startBtn.addEventListener('click', startGame);
+    retryBtn.addEventListener('click', startGame);
+
+    console.assert(getTowerWidth(0) === 170, 'Base width should be 170');
+    console.assert(getTowerWidth(100) >= 68, 'Tower width should not shrink below 68');
+    console.assert(clamp(10, 0, 5) === 5, 'Clamp upper bound failed');
+    console.assert(clamp(-1, 0, 5) === 0, 'Clamp lower bound failed');
+    console.assert(clamp(3, 0, 5) === 3, 'Clamp should keep in-range values unchanged');
+    console.assert(VISIBLE_BLOCKS === 10, 'Visible blocks target should remain 10');
+
+    createGame();
+    renderLeaderboard();
+    updateUI();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
