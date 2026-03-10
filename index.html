@@ -31,7 +31,8 @@
       align-items: center;
       justify-content: center;
       padding: 16px;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       user-select: none;
     }
 
@@ -223,6 +224,9 @@
       }
     }
   </style>
+  <!-- PWA meta -->
+  <link rel="manifest" href="data:application/json,{\"name\":\"Perfect Tap Tower\",\"short_name\":\"TapTower\",\"start_url\":\"./\",\"display\":\"standalone\",\"background_color\":\"#0f172a\",\"theme_color\":\"#1e293b\",\"icons\":[{\"src\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAYAAADLabXuAAAACXBIWXMAAAsSAAALEgHS3X78AAAAH0lEQVR4nO3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAAAA4GsB9QABmR7BiwAAAABJRU5ErkJggg==\",\"sizes\":\"192x192\",\"type\":\"image/png\"}]}">
+  <meta name="theme-color" content="#1e293b">
 </head>
 <body>
   <div class="app">
@@ -605,40 +609,46 @@
       ctx.fillRect(0, GROUND_Y + FLOOR_H, W, H - (GROUND_Y + FLOOR_H));
     }
 
+    // Mahjong tiles provided by user
+    const FEI = '飛';
+    const FLOWERS = ['🀢','🀣','🀤','🀥','🀦','🀧','🀨','🀩'];
+    const ANIMALS = ['🐱','🐭','🐓','🐛'];
+    const TILE_SET = [
+      '🀙','🀚','🀛','🀜','🀝','🀞','🀟','🀠','🀡',
+      '🀐','🀑','🀒','🀓','🀔','🀕','🀖','🀗','🀘',
+      '🀇','🀈','🀉','🀊','🀋','🀌','🀍','🀎','🀏',
+      '🀀','🀁','🀂','🀃','中','發','白'
+    ];
+
     function drawBuildingBlock(block, isCurrent = false) {
       const x = block.x;
       const y = block.y;
       const w = block.width;
       const h = block.height;
-      const capInset = clamp(6 + Math.floor(block.styleLevel / 8) * 2, 6, 18);
-      const midInset = clamp(2 + Math.floor(block.styleLevel / 14), 2, 8);
 
-      drawRoundedRect(x, y + 5, w, h - 5, 6, block.color);
-      const capW = Math.max(24, w - capInset * 2);
-      const capX = x + (w - capW) / 2;
-      drawRoundedRect(capX, y, capW, 9, 4, 'rgba(255, 255, 255, 0.16)');
+      // Mahjong tile body
+      drawRoundedRect(x, y, w, h, 6, '#f8f5ef');
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.07)';
-      ctx.fillRect(x + 4, y + 8, Math.max(0, w * 0.18), h - 12);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.13)';
-      ctx.fillRect(x + w - Math.max(0, w * 0.14) - 4, y + 8, Math.max(0, w * 0.14), h - 12);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.09)';
-      ctx.fillRect(x + midInset, y + Math.floor(h / 2) - 2, Math.max(0, w - midInset * 2), 4);
+      ctx.strokeStyle = '#c9c5bd';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
 
-      const cols = Math.max(2, Math.floor((w - 12) / 18));
-      const gap = cols > 1 ? (w - 12) / cols : w - 12;
-      ctx.fillStyle = isCurrent ? 'rgba(255, 255, 255, 0.34)' : 'rgba(255, 255, 255, 0.22)';
-      for (let i = 0; i < cols; i++) {
-        const wx = x + 8 + i * gap;
-        ctx.fillRect(wx, y + 10, 6, 3);
-        if (h > 24) {
-          ctx.fillRect(wx, y + 17, 6, 3);
-        }
+      // pick a mahjong tile symbol
+      const tile = TILE_SET[block.styleLevel % TILE_SET.length];
+
+      ctx.font = `${Math.floor(h * 0.75)}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#111';
+
+      ctx.fillText(tile, x + w / 2, y + h / 2 + 1);
+
+      // highlight moving tile
+      if (isCurrent) {
+        ctx.strokeStyle = 'rgba(34,211,238,0.9)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
       }
-
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.24)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, y + 5.5, w - 1, h - 6);
     }
 
     function drawTower() {
@@ -720,6 +730,35 @@
       update(dt);
       render();
       requestAnimationFrame(loop);
+
+    /* PWA service worker registration */
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        self.addEventListener('install', e => self.skipWaiting());
+        self.addEventListener('activate', e => self.clients.claim());
+        self.addEventListener('fetch', event => {
+          event.respondWith(fetch(event.request).catch(()=>caches.match(event.request)));
+        });
+      `;
+      const blob = new Blob([swCode], {type:'text/javascript'});
+      const swURL = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swURL);
+    }
+
+    /* install prompt */
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e)=>{
+      e.preventDefault();
+      deferredPrompt = e;
+      console.log('PWA install available');
+    });
+
+    window.installPWA = async function(){
+      if(!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt=null;
+    };
     }
 
     function handleInput() {
